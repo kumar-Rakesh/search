@@ -2,12 +2,15 @@ package org.uwin.search.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 import org.uwin.search.config.AppConfig;
+import org.uwin.search.exception.base.SearchEngineException;
+import org.uwin.search.model.WebPage;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -16,24 +19,33 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.uwin.search.model.enums.Constant.HTML_EXT;
+import static org.uwin.search.model.enums.Constant.TXT_EXT;
 import static org.uwin.search.util.RegexPattern.SPECIAL_CHAR;
 import static org.uwin.search.util.RegexPattern.URL;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CrawlerService {
+public class CrawlService {
 
+    private final IndexService indexService;
     private final AppConfig config;
-    private static final String HTML_EXT = ".html";
-    private static final String TXT_EXT = ".txt";
 
     public List<String> crawl(String url) throws IOException {
         List<String> urls = getUrls(url);
-        htmlToText(urls);
+        CompletableFuture.runAsync(() -> {
+            try {
+                WebPage webPage = htmlToText(urls);
+                indexService.index(webPage);
+            } catch (IOException ex) {
+                throw new SearchEngineException();
+            }
+        });
         return urls;
     }
 
@@ -53,20 +65,30 @@ public class CrawlerService {
         return urls;
     }
 
-    private void htmlToText(List<String> urls) throws IOException {
+    private WebPage htmlToText(List<String> urls) throws IOException {
+        List<File> htmlFiles = new ArrayList<>();
+        List<File> textFiles = new ArrayList<>();
         for (String url : urls) {
-            String regex = SPECIAL_CHAR;
-            String name = url.replaceAll(regex, "");
-            Document document = Jsoup.connect(url).get();
-            String outputPath = config.getPath();
-            String html = document.html();
-            String text = document.text();
-            writeToFile(outputPath + "html\\", name, html, HTML_EXT);
-            writeToFile(outputPath + "text\\", name, text, TXT_EXT);
+            try {
+                String regex = SPECIAL_CHAR;
+                String name = url.replaceAll(regex, "");
+                Document document = Jsoup.connect(url).get();
+                String outputPath = config.getPath();
+                String html = document.html();
+                String text = document.text();
+                htmlFiles.add(writeToFile(outputPath + "html\\", name, html, HTML_EXT.value()));
+                textFiles.add(writeToFile(outputPath + "text\\", name, text, TXT_EXT.value()));
+            } catch (HttpStatusException ex) {
+                log.info("Crawling forbidden for url: {}", url);
+            }
         }
+        return WebPage.builder()
+                .htmlFiles(htmlFiles)
+                .textFiles(textFiles)
+                .build();
     }
 
-    private void writeToFile(String folderPath, String fileName, String text, String ext) throws IOException {
+    private File writeToFile(String folderPath, String fileName, String text, String ext) throws IOException {
         BufferedWriter writer = null;
         try {
             File outputFolder = new File(folderPath);
@@ -76,6 +98,8 @@ public class CrawlerService {
             writer = new BufferedWriter(new FileWriter(folderPath + fileName + ext));
             writer.write(text);
             writer.close();
+            File file = new File(folderPath + fileName + ext);
+            return file;
         } finally {
             if (Objects.nonNull(writer)) {
                 writer.close();

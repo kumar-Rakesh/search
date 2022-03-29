@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.uwin.search.service.CrawlerService;
+import org.uwin.search.service.CrawlService;
 
 import java.io.IOException;
 import java.util.List;
@@ -15,10 +15,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CrawlerController {
 
-    private final CrawlerService crawlerService;
+    private final CrawlService crawlService;
 
     @GetMapping("/crawl")
     public List<String> crawl(@RequestParam("url") String url) throws IOException {
-        return crawlerService.crawl(url);
+        return crawlService.crawl(url);
     }
 }
