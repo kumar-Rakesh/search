@@ -10,6 +10,7 @@ import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 import org.uwin.search.config.AppConfig;
 import org.uwin.search.exception.base.SearchEngineException;
+import org.uwin.search.model.WebPage;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -39,8 +40,8 @@ public class CrawlService {
         List<String> urls = getUrls(url);
         CompletableFuture.runAsync(() -> {
             try {
-                htmlToText(urls);
-                indexService.index();
+                WebPage webPage = htmlToText(urls);
+                indexService.index(webPage);
             } catch (IOException ex) {
                 throw new SearchEngineException();
             }
@@ -64,7 +65,9 @@ public class CrawlService {
         return urls;
     }
 
-    private void htmlToText(List<String> urls) throws IOException {
+    private WebPage htmlToText(List<String> urls) throws IOException {
+        List<File> htmlFiles = new ArrayList<>();
+        List<File> textFiles = new ArrayList<>();
         for (String url : urls) {
             try {
                 String regex = SPECIAL_CHAR;
@@ -73,15 +76,19 @@ public class CrawlService {
                 String outputPath = config.getPath();
                 String html = document.html();
                 String text = document.text();
-                writeToFile(outputPath + "html\\", name, html, HTML_EXT.value());
-                writeToFile(outputPath + "text\\", name, text, TXT_EXT.value());
+                htmlFiles.add(writeToFile(outputPath + "html\\", name, html, HTML_EXT.value()));
+                textFiles.add(writeToFile(outputPath + "text\\", name, text, TXT_EXT.value()));
             } catch (HttpStatusException ex) {
                 log.info("Crawling forbidden for url: {}", url);
             }
         }
+        return WebPage.builder()
+                .htmlFiles(htmlFiles)
+                .textFiles(textFiles)
+                .build();
     }
 
-    private void writeToFile(String folderPath, String fileName, String text, String ext) throws IOException {
+    private File writeToFile(String folderPath, String fileName, String text, String ext) throws IOException {
         BufferedWriter writer = null;
         try {
             File outputFolder = new File(folderPath);
@@ -91,6 +98,8 @@ public class CrawlService {
             writer = new BufferedWriter(new FileWriter(folderPath + fileName + ext));
             writer.write(text);
             writer.close();
+            File file = new File(folderPath + fileName + ext);
+            return file;
         } finally {
             if (Objects.nonNull(writer)) {
                 writer.close();

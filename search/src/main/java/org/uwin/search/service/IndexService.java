@@ -7,18 +7,16 @@ import org.uwin.search.config.AppConfig;
 import org.uwin.search.exception.base.SearchEngineException;
 import org.uwin.search.model.Page;
 import org.uwin.search.model.Trie;
+import org.uwin.search.model.WebPage;
 import org.uwin.search.model.impl.TernarySearchTree;
 import org.uwin.search.util.InputStream;
-import org.uwin.search.util.WordComparator;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.PriorityQueue;
+import java.util.List;
 import java.util.Set;
-
-import static org.uwin.search.model.enums.Constant.HTML;
-import static org.uwin.search.model.enums.Constant.TEXT;
+import java.util.TreeMap;
 
 @Slf4j
 @Service
@@ -29,25 +27,19 @@ public class IndexService {
     private final AppConfig config;
     private final InputStream inputStream;
 
-    public void index() {
-        String path = config.getPath();
-        log.info("Path->{}", path);
-        String htmlPath = path + HTML + "\\";
-        log.info("Html Path->{}", htmlPath);
-        String textPath = path + TEXT + "\\";
-        log.info("Text Path->{}", textPath);
-        File htmlFolder = new File(htmlPath);
-        File textFolder = new File(textPath);
-        File[] htmlFiles = htmlFolder.listFiles();
-        File[] textFiles = textFolder.listFiles();
+    public void index(WebPage webPage) {
+        List<File> htmlFiles = webPage.getHtmlFiles();
+        List<File> textFiles = webPage.getTextFiles();
         index(htmlFiles, textFiles);
     }
 
-    private void index(File[] htmlFiles, File[] textFiles) {
-        for (int i = 0; i < textFiles.length; ++i) {
-            if (textFiles[i].isFile()) {
+    private void index(List<File> htmlFiles, List<File> textFiles) {
+        for (int i = 0; i < textFiles.size(); ++i) {
+            File textFile = textFiles.get(i);
+            String htmlFilePath = htmlFiles.get(i).getAbsolutePath();
+            if (textFile.isFile()) {
                 Trie<Long> trie = new TernarySearchTree<Long>();
-                String[] tokens = scan(textFiles[i]);
+                String[] tokens = scan(textFile);
                 Set<String> tokensSet = new HashSet<>();
                 for (String token : tokens) {
                     if (trie.contains(token)) {
@@ -61,26 +53,27 @@ public class IndexService {
                 for (String token : tokensSet) {
                     if (trie.contains(token)) {
                         log.info("Token: {}", token);
-                        long occurrences = trie.get(token);
+                        long newOccurrences = trie.get(token);
+                        TreeMap<Page, Page> pages = (TreeMap<Page, Page>) wordMap.getAllPages(token);
                         if (wordMap.contains(token)) {
-                            PriorityQueue<Page> pq = wordMap.getPages(token);
-                            long currentOccurrences = wordMap.get(token);
-                            Page page = pq.peek();
-                            if (page.getOccurrences() < occurrences && pq.size() == config.getLimit()) {
-                                pq.poll();
+                            long currentTotalOccurrences = wordMap.get(token);
+                            if (wordMap.containsPage(token, htmlFilePath)) {
+                                Page page = wordMap.getPage(token, htmlFilePath);
+                                long currentPageOccurrences = page.getOccurrences();
+                                if (currentPageOccurrences != newOccurrences) {
+                                    wordMap.removePage(token, htmlFilePath);
+                                    page.setOccurrences(newOccurrences);
+                                    wordMap.put(token, currentTotalOccurrences - currentPageOccurrences + newOccurrences, page);
+                                }
+                            } else {
+                                if (pages.size() == config.getLimit()) {
+                                    Page p = pages.remove(pages.firstKey());
+                                    currentTotalOccurrences -= p.getOccurrences();
+                                }
+                                wordMap.put(token, currentTotalOccurrences + newOccurrences, Page.builder().page(htmlFilePath).occurrences(newOccurrences).build());
                             }
-                            pq.add(Page.builder()
-                                    .page(htmlFiles[i].getAbsolutePath())
-                                    .occurrences(occurrences)
-                                    .build());
-                            wordMap.put(token, occurrences + currentOccurrences, pq);
                         } else {
-                            PriorityQueue<Page> pq = new PriorityQueue<>(new WordComparator());
-                            pq.add(Page.builder()
-                                    .page(htmlFiles[i].getAbsolutePath())
-                                    .occurrences(occurrences)
-                                    .build());
-                            wordMap.put(token, occurrences, pq);
+                            wordMap.put(token, newOccurrences, Page.builder().page(htmlFilePath).occurrences(newOccurrences).build());
                         }
                     }
                 }

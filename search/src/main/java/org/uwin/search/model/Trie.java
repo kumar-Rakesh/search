@@ -1,6 +1,6 @@
 package org.uwin.search.model;
 
-import java.util.PriorityQueue;
+import java.util.Map;
 
 public interface Trie<V> extends Tree {
 
@@ -8,7 +8,15 @@ public interface Trie<V> extends Tree {
 
     V put(String key, V value);
 
-    V put(String key, V value, PriorityQueue<Page> pages);
+    V put(String key, V value, Page page);
 
-    PriorityQueue<Page> getPages(String key);
+    boolean containsPage(String key, String page);
+
+    boolean removePage(String key, String page);
+
+    Page getPage(String key, String page);
+
+    Map<Page, Page> getAllPages(String key);
+
+    Map<Word, Word> autoComplete(String key);
 }

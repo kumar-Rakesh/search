@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.uwin.search.model.Page;
+import org.uwin.search.model.Word;
 import org.uwin.search.service.SearchService;
 
 import java.util.List;
@@ -23,5 +24,10 @@ public class SearchController {
     public List<Page> search(@RequestParam("query") String query) {
         log.info("Query->{}", query);
         return searchService.search(query.toLowerCase());
+    }
+
+    @GetMapping("/search/autofill")
+    public List<Word> autofill(@RequestParam("query") String query) {
+        return searchService.autoComplete(query);
     }
 }
