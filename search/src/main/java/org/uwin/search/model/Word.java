@@ -8,7 +8,7 @@ import lombok.Data;
 public class Word {
 
     private String key;
-    private long occurrences;
+    private long val;
 
     public boolean equals(Object o) {
         if (o == this) {

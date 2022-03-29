@@ -26,8 +26,13 @@ public class SearchController {
         return searchService.search(query.toLowerCase());
     }
 
-    @GetMapping("/search/autofill")
-    public List<Word> autofill(@RequestParam("query") String query) {
+    @GetMapping("/search/autoComplete")
+    public List<Word> autoComplete(@RequestParam("query") String query) {
         return searchService.autoComplete(query);
+    }
+
+    @GetMapping("/search/like")
+    public List<Word> like(@RequestParam("query") String query) {
+        return searchService.spellCheck(query);
     }
 }

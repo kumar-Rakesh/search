@@ -26,6 +26,7 @@ public class IndexService {
     private final Trie<Long> wordMap;
     private final AppConfig config;
     private final InputStream inputStream;
+    private final Set<String> dictionary;
 
     public void index(WebPage webPage) {
         List<File> htmlFiles = webPage.getHtmlFiles();
@@ -49,6 +50,7 @@ public class IndexService {
                         trie.put(token, 1L);
                     }
                     tokensSet.add(token);
+                    dictionary.add(token);
                 }
                 for (String token : tokensSet) {
                     if (trie.contains(token)) {

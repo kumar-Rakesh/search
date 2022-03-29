@@ -8,9 +8,7 @@ import org.uwin.search.model.Page;
 import org.uwin.search.model.Trie;
 import org.uwin.search.model.impl.TernarySearchTree;
 
-import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.TreeMap;
+import java.util.*;
 
 @Data
 @Configuration
@@ -30,5 +28,10 @@ public class AppConfig {
     @Bean
     public Map<String, PriorityQueue<Page>> getWordMap() {
         return new TreeMap<String, PriorityQueue<Page>>();
+    }
+
+    @Bean
+    public Set<String> getDictionary() {
+        return new HashSet<>();
     }
 }

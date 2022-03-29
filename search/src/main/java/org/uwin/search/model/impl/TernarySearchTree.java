@@ -182,7 +182,7 @@ public class TernarySearchTree<V> implements Trie<V> {
             return;
         }
         if (root.isWord) {
-            Word word = Word.builder().key(key + root.c).occurrences((long) root.val).build();
+            Word word = Word.builder().key(key + root.c).val((long) root.val).build();
             if (keys.size() == limit) {
                 TreeMap<Word, Word> map = (TreeMap<Word, Word>) keys;
                 map.remove(map.firstKey());
